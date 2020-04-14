@@ -1,4 +1,5 @@
 import numpy as np
+import datetime as dt
 
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
@@ -49,13 +50,14 @@ def precipitation(date):
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
-    """Return a list of all passenger names"""
-    # Query all passengers
+    # Query precipitation for given date
     results = session.query(Measurement.prcp).filter(Measurement.date == date).all()
 
     session.close()
+    
+    prcp = {"precipitation": prcp}
 
-    return jsonify(results)
+    return jsonify(prcp)
 
 
 @app.route("/api/v1.0/stations")
@@ -63,8 +65,8 @@ def stations():
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
-    """Return a list of passenger data including the name, age, and sex of each passenger"""
-    # Query all passengers
+    """Return a list of station data including the name, lat, long, and elevation of each station"""
+    # Query all stations
     results = session.query(Station.station, Station.name, Station.latitude, Station.longitude, Station.elevation).all()
 
     session.close()
@@ -82,17 +84,29 @@ def stations():
     return jsonify(all_stations)
 
 @app.route("/api/v1.0/tobs")
-def precipitation(date):
+def tobs():
     # Create our session (link) from Python to the DB
     session = Session(engine)
+    
+    last_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()
+    query_date = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 
-    """Return a list of all passenger names"""
-    # Query all passengers
-    results = session.query(Measurement.prcp).filter(Measurement.date == date).all()
+    """Return a list of temperatures for all dates in last year of data"""
+    # Query temperatures for all dates
+    results = session.query(Measurement.date, Measurement.tobs).filter(Measurement.station == 'USC00519281').\
+        filter(Measurement.date >= query_date).all()
 
     session.close()
+    
+    # Convert list of tuples into normal list
+    all_temps = []
+    for date, temp in results:
+        temp_dict = {}
+        temp_dict["date"] = date
+        temp_dict["temp"] = temp
+        all_temps.append(temp_dict)
 
-    return jsonify(results)
+    return jsonify(all_temps)
 
 
 if __name__ == '__main__':
