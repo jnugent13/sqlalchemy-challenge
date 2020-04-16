@@ -41,23 +41,27 @@ def welcome():
         f"/api/v1.0/precipitation/<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/<start> and /api/v1.0/<start>/<end>"
+        f"/api/v1.0/<start>: Input start date (and end date, if applicable) as yyyy-mm-dd"
     )
 
 
-@app.route("/api/v1.0/precipitation/<date>")
-def precipitation(date):
+@app.route("/api/v1.0/precipitation/")
+def precipitation():
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
-    # Query precipitation for given date
-    results = session.query(Measurement.prcp).filter(Measurement.date == date).all()
+    # Query precipitation for all dates
+    results = session.query(Measurement.date, Measurement.prcp).all()
 
     session.close()
     
-    prcp = {"precipitation": prcp}
+    # Return JSON dictionary using date as key and precipitation as value
+    precipitation = []
+    for date, prcp in results:
+        date_prcp = {date: prcp}
+        precipitation.append(date_prcp)
 
-    return jsonify(prcp)
+    return jsonify(precipitation)
 
 
 @app.route("/api/v1.0/stations")
@@ -108,6 +112,48 @@ def tobs():
 
     return jsonify(all_temps)
 
+@app.route("/api/v1.0/<start>")
+def temp_stats(start):
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    #Query min, avg and max temperatures for date range
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date >= start).all()
+
+    session.close()
+
+    temp_list = []
+    for min, max, avg in results:
+        temp_stats = {}
+        temp_stats['TMIN'] = min
+        temp_stats['TAVG'] = avg
+        temp_stats['TMAX'] = max
+        temp_list.append(temp_stats)
+    
+    return jsonify(temp_list)
+
+
+@app.route("/api/v1.0/<start>/<end>")
+def temp_list(start, end):
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    #Query min, avg and max temperatures for date range
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date >= start).filter(Measurement.date <= end).all()
+
+    session.close()
+
+    temp_list = []
+    for min, max, avg in results:
+        temp_stats = {}
+        temp_stats['TMIN'] = min
+        temp_stats['TAVG'] = avg
+        temp_stats['TMAX'] = max
+        temp_list.append(temp_stats)
+    
+    return jsonify(temp_list)
 
 if __name__ == '__main__':
     app.run(debug=True)
